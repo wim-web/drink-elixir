@@ -1,0 +1,12 @@
+{
+  "name": "drink-elixir",
+  "version": "beta-1",
+  "main": "index.js",
+  "scripts": {},
+  "license": "Apache 2.0",
+  "description": "",
+  "dependencies": {
+    "hono": "^4.7.0",
+    "hono-react-router-adapter": "^0.6.2"
+  }
+}
