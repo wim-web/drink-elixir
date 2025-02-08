@@ -1,11 +1,20 @@
 // top.tsx
-import type { LoaderFunctionArgs, MetaArgs } from "react-router";
-import { Link } from "react-router";
+import type { MetaArgs } from "react-router";
+import { Form, Link, redirect } from "react-router";
+import type { Route } from "./+types/top";
+import { randomUUID } from "crypto";
 
 export function meta({ }: MetaArgs) {
   return [
     { title: "Drink Elixir" },
   ];
+}
+
+export async function action({ context }: Route.ActionArgs) {
+  const uuid = randomUUID()
+  const db = context.hono.context.env.DB;
+  await db.prepare("INSERT INTO session (session) VALUES (?)").bind(uuid).run();
+  return redirect(`/game?session=${uuid}`);
 }
 
 export default function Top() {
@@ -20,17 +29,21 @@ export default function Top() {
       }}
     >
       <h1>Drink Elixir</h1>
-      <Link to="/game" style={{ textDecoration: "none" }}>
+      <Form method="post">
         <button
+          type="submit"
           style={{
-            fontSize: "24px",
             padding: "10px 20px",
+            fontSize: "16px",
             cursor: "pointer",
+            border: "none",
+            borderRadius: "4px",
+            color: "white",
           }}
         >
-          Start Game
+          Start
         </button>
-      </Link>
-    </div>
+      </Form>
+    </div >
   );
 }

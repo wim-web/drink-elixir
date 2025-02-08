@@ -1,34 +1,113 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link, useLoaderData } from "react-router";
-import { generateMap, type Tile } from "../pkg/map/generate";
+import { Link, redirect, useLoaderData, Form } from "react-router";
+import { generateMap, type GenerateMap } from "../pkg/map/generate";
 import { useKeyDown } from "~/hooks/useKeyDown";
+import type { Route } from './+types/game';
+import { useFetcher } from "react-router";
 
 
 const GRID_WIDTH = 10;
 const GRID_HEIGHT = 10;
 
-export async function loader() {
-    console.log("Generating map...");
-    return generateMap(GRID_WIDTH, GRID_HEIGHT);
+type SessionRow = {
+    session: string;
+    data: string | null;
+}
+
+export async function loader(args: Route.LoaderArgs) {
+    const db = args.context.hono.context.env.DB;
+    const url = new URL(args.request.url);
+    const session = url.searchParams.get("session")
+
+    if (session === null) {
+        return redirect("/");
+    }
+
+    const result = await db.prepare("SELECT * FROM session WHERE session = ?")
+        .bind(session)
+        .first<SessionRow>();
+
+    if (result === null) {
+        return redirect("/");
+    }
+
+    if (result.data === null) {
+        const storeData: StoreData = {
+            floor: 1,
+            loadCount: 1,
+        }
+        await db.prepare("UPDATE session SET data = ? WHERE session = ?").bind(JSON.stringify(storeData), session).run();
+
+        return {
+            ...generateMap(GRID_WIDTH, GRID_HEIGHT),
+            session,
+            floor: 1,
+        }
+    }
+
+    const data = JSON.parse(result.data) as StoreData;
+    let { floor, loadCount } = data;
+    loadCount++;
+    if (loadCount != floor) {
+        return redirect("/");
+    }
+
+    const storeData: StoreData = {
+        floor,
+        loadCount,
+    }
+
+    await db.prepare("UPDATE session SET data = ? WHERE session = ?").bind(JSON.stringify(storeData), session).run();
+
+    return {
+        ...generateMap(GRID_WIDTH, GRID_HEIGHT),
+        session,
+        floor,
+    }
+}
+
+type StoreData = {
+    floor: number;
+    loadCount: number;
+}
+
+export async function action(args: Route.ActionArgs) {
+    const formData = await args.request.formData();
+    const session = formData.get("session");
+    const floor = formData.get("floor");
+
+    if (session === null || floor === null) {
+        return redirect("/");
+    }
+
+    const db = args.context.hono.context.env.DB;
+
+    const result = await db.prepare("SELECT * FROM session WHERE session = ?")
+        .bind(session).first<SessionRow>();
+
+    if (result === null) {
+        return redirect("/");
+    }
+
+    const storeData: StoreData = result.data === null
+        ? { floor: parseInt(floor.toString()) }
+        : JSON.parse(result.data);
+
+    storeData.floor += 1;
+
+    await db.prepare("UPDATE session SET data = ? WHERE session = ?")
+        .bind(JSON.stringify(storeData), session)
+        .run();
 }
 
 export default function Game() {
-    const data = useLoaderData() as { map: Tile[][]; stairPos: { x: number; y: number } };
+    const fetcher = useFetcher();
+    const { map, stairPos, playerPos, session, floor } = useLoaderData<GenerateMap & { session: string, floor: number }>();
 
-    const [floor, setFloor] = useState(1);
-    const [mapData, setMapData] = useState<Tile[][]>(data.map);
-    const [stairPos, setStairPos] = useState<{ x: number; y: number }>(data.stairPos);
-    const [playerPos, setPlayerPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [newPlayerPos, setPlayerPos] = useState(playerPos);
     const [gameClear, setGameClear] = useState(false);
 
-    const initFloor = useCallback(async () => {
-        const newData = generateMap(GRID_WIDTH, GRID_HEIGHT);
-        setMapData(newData.map);
-        setStairPos(newData.stairPos);
-        setPlayerPos({ x: 0, y: 0 });
-    }, []);
-
-    const handleKeyDown = useKeyDown(gameClear, mapData, setPlayerPos);
+    const handleKeyDown = useKeyDown(gameClear, map, setPlayerPos);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -36,15 +115,21 @@ export default function Game() {
     }, [handleKeyDown]);
 
     useEffect(() => {
-        if (playerPos.x === stairPos.x && playerPos.y === stairPos.y) {
+        setPlayerPos(playerPos);
+    }, [playerPos]);
+
+    useEffect(() => {
+        if (newPlayerPos.x === stairPos.x && newPlayerPos.y === stairPos.y) {
             if (floor >= 10) {
                 setGameClear(true);
             } else {
-                setFloor((prev) => prev + 1);
-                initFloor();
+                const data = new FormData();
+                data.append("session", session);
+                data.append("floor", floor.toString());
+                fetcher.submit(data, { action: "/game", method: "POST" });
             }
         }
-    }, [playerPos, stairPos, floor, initFloor]);
+    }, [newPlayerPos]);
 
     if (gameClear) {
         return (
@@ -78,7 +163,7 @@ export default function Game() {
                     margin: "auto",
                 }}
             >
-                {mapData.flatMap((row, y) =>
+                {map.flatMap((row, y) =>
                     row.map((tile, x) => {
                         let bgColor = "#333";
                         if (tile.type === "floor") {
@@ -87,7 +172,7 @@ export default function Game() {
                         if (tile.type === "stair") {
                             bgColor = "#ff0";
                         }
-                        if (playerPos.x === x && playerPos.y === y) {
+                        if (newPlayerPos.x === x && newPlayerPos.y === y) {
                             bgColor = "#0f0";
                         }
                         return (

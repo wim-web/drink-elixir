@@ -1,9 +1,9 @@
 
 import { useCallback } from "react";
-import type { Tile } from "~/pkg/map/generate";
+import type { Map, Position } from "~/pkg/map/generate";
 
 
-export function useKeyDown(gameClear: boolean, mapData: Tile[][], setPlayerPos: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>) {
+export function useKeyDown(gameClear: boolean, mapData: Map, setPlayerPos: React.Dispatch<React.SetStateAction<Position>>) {
     return useCallback(
         (e: KeyboardEvent) => {
             if (gameClear) return;

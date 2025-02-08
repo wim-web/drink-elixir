@@ -1,9 +1,16 @@
+type Line = Tile[];
 
-export type Tile = {
+type Tile = {
     type: "wall" | "floor" | "stair";
 };
 
-export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): { map: Tile[][]; stairPos: { x: number; y: number } } {
+export type Map = Line[]
+
+export type Position = { x: number; y: number }
+
+export type GenerateMap = { map: Map; stairPos: Position, playerPos: Position }
+
+export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMap {
     const map: Tile[][] = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
         const row: Tile[] = [];
@@ -42,16 +49,31 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): { map: Til
         }
     }
 
-    const floorCells: { x: number; y: number }[] = [];
+    // floor（床）の位置をすべて収集
+    const floorCells: Position[] = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
         for (let x = 0; x < GRID_WIDTH; x++) {
-            if (map[y][x].type === "floor" && (x !== 0 || y !== 0)) {
+            if (map[y][x].type === "floor") {
                 floorCells.push({ x, y });
             }
         }
     }
+
+    if (floorCells.length === 0) {
+        throw new Error("床セルが存在しません。マップ生成に失敗しました。");
+    }
+
+    // 階段を配置するセルをランダムに選択
     const stairCell = floorCells[Math.floor(Math.random() * floorCells.length)];
     map[stairCell.y][stairCell.x].type = "stair";
 
-    return { map, stairPos: stairCell };
+    // 階段セルを除外して、プレイヤーの初期位置を選ぶ
+    const availableFloorCells = floorCells.filter(cell => cell.x !== stairCell.x || cell.y !== stairCell.y);
+
+    // availableFloorCellsが空の場合は、どうしても床セルが1箇所しかなかったケースなので、階段のセルを使う
+    const playerCell = availableFloorCells.length > 0
+        ? availableFloorCells[Math.floor(Math.random() * availableFloorCells.length)]
+        : stairCell;
+
+    return { map, stairPos: stairCell, playerPos: playerCell };
 }
