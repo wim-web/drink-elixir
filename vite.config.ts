@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import serverAdapter from "hono-react-router-adapter/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { getLoadContext } from './load-context'
 
 export default defineConfig((_) => ({
   ssr: {
@@ -12,12 +13,13 @@ export default defineConfig((_) => ({
     },
   },
   plugins: [
+    reactRouter(),
     serverAdapter({
       adapter,
+      getLoadContext,
       entry: "server/index.ts",
     }),
     tailwindcss(),
-    reactRouter(),
     tsconfigPaths(),
   ],
 }));
