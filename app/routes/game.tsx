@@ -265,19 +265,11 @@ function MapUI({
                                 />
                             )}
                             {tile.type === "item" && (
-                                <div style={{
-                                    position: "absolute",
-                                    width: "100%",
-                                    height: "100%",
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    fontSize: "24px",
-                                    background: "pink",
-                                    color: "black"
-                                }}>
-                                    {tile.itemName[0].toUpperCase()}
-                                </div>
+                                <img
+                                    src={tile.itemName === "potion" ? "/potion.jpg" : "/deusd.png"}
+                                    alt={tile.itemName}
+                                    style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0, backgroundColor: "pink" }}
+                                />
                             )}
                         </div>
                     );
