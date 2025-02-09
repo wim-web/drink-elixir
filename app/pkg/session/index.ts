@@ -8,6 +8,9 @@ export type SessionRow = {
 export type StoreData = {
     floor: number;
     loadCount: number;
+    player?: {
+        hitPoint: number;
+    }
 }
 
 export async function suspend(db: D1Database, session: string) {

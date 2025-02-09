@@ -1,16 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link, redirect, useLoaderData, Form } from "react-router";
-import { generateMap, type GenerateMap, type Position } from "../pkg/map/generate";
+import { Link, redirect, useLoaderData } from "react-router";
 import { useKeyDown } from "~/hooks/useKeyDown";
 import type { Route } from './+types/game';
 import { useFetcher } from "react-router";
 import { FaStairs } from "react-icons/fa6";
 import { getSession, saveData } from "~/pkg/session/db";
 import { suspend } from "~/pkg/session";
-
-
-const GRID_WIDTH = 10;
-const GRID_HEIGHT = 10;
+import { generateMap, type Map } from "~/pkg/dungeon/map";
+import type { Field, Position } from "~/pkg/dungeon/field";
 
 
 export async function loader(args: Route.LoaderArgs) {
@@ -36,28 +33,26 @@ export async function loader(args: Route.LoaderArgs) {
         });
 
         return {
-            ...generateMap(GRID_WIDTH, GRID_HEIGHT),
+            ...generateMap({}),
             session,
             floor: 1,
         }
     }
 
-    let { floor, loadCount } = result.data;
+    let { floor, loadCount, player } = result.data;
     loadCount++;
     if (loadCount != floor) {
         return await suspend(db, session);
     }
 
-    await saveData(db, session, { floor, loadCount });
+    await saveData(db, session, { floor, loadCount, player });
 
     return {
-        ...generateMap(GRID_WIDTH, GRID_HEIGHT),
+        ...generateMap({ player }),
         session,
         floor,
     }
 }
-
-
 
 export async function action(args: Route.ActionArgs) {
     const formData = await args.request.formData();
@@ -75,7 +70,10 @@ export async function action(args: Route.ActionArgs) {
         return await suspend(db, session);
     }
 
+    const playerHP = formData.get("player.hitPoint")?.toString();
+
     result.data.floor += 1;
+    result.data.player = { hitPoint: parseInt(playerHP ?? "0") };
 
     await saveData(db, session, result.data);
 }
@@ -106,34 +104,43 @@ function enemyMove(playerPos: Position, enemyPos: Position): { position: Positio
 
 export default function Game() {
     const fetcher = useFetcher();
-    const { map, stairPos, playerPos, session, floor } = useLoaderData<
-        GenerateMap & { session: string; floor: number }
+    const loaderData = useLoaderData<
+        Map & { session: string; floor: number }
     >();
 
-    const [newPlayerPos, setPlayerPos] = useState(playerPos);
-    const [enemyPos, setEnemyPos] = useState<Position>({ x: GRID_WIDTH - 1, y: GRID_HEIGHT - 1 });
-    const [playerHP, setPlayerHP] = useState(10);
+    const [playerPos, setPlayerPos] = useState({ x: 0, y: 0 });
+    const [enemyPos, setEnemyPos] = useState({ x: 0, y: 0 });
+    const [playerHP, setPlayerHP] = useState(0);
     const [gameOver, setGameOver] = useState(false);
 
-    // プレイヤー動作後に敵を動かす処理
-    const moveEnemy = useCallback(
-        (updatedPlayerPos: Position) => {
-            const { position: newEnemyPos, isAttack } = enemyMove(updatedPlayerPos, enemyPos);
-            if (isAttack) {
-                setPlayerHP((prev) => prev - 1);
-            }
-            setEnemyPos(newEnemyPos);
-        },
-        [enemyPos]
-    );
+    const { field, stairPos, enemy, player, session, floor } = loaderData;
+
+    useEffect(() => {
+        setPlayerPos(player.pos);
+        setEnemyPos(enemy.pos);
+        setPlayerHP(player.hitPoint);
+    }, [loaderData]);
 
     // useKeyDown フック内で setPlayerPos を使った後、敵の処理を呼ぶ
-    const handleKeyDown = useKeyDown(gameOver, map, (pos) => {
-        const newPos = typeof pos === 'function' ? pos(newPlayerPos) : pos;
+    const handleKeyDown = useKeyDown(gameOver, field, (pos) => {
+        const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
         setPlayerPos(newPos);
         // プレイヤーが階段に到達していない場合のみ敵を移動
         if (!(newPos.x === stairPos.x && newPos.y === stairPos.y)) {
-            moveEnemy(newPos);
+            const { position: newEnemyPos, isAttack } = enemyMove(newPos, enemyPos);
+            if (isAttack) {
+                const newHP = playerHP - 1;
+                setPlayerHP(newHP);
+                if (newHP <= 0) {
+                    setGameOver(true);
+                }
+            }
+            setEnemyPos(newEnemyPos);
+        } else {
+            const data = new FormData();
+            data.append("session", session);
+            data.append("player.hitPoint", playerHP.toString());
+            fetcher.submit(data, { action: "/game", method: "POST" });
         }
     });
 
@@ -142,29 +149,11 @@ export default function Game() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [handleKeyDown]);
 
-    useEffect(() => {
-        // HPが0以下になった場合の処理（例: トップに戻すなど）
-        if (playerHP <= 0) {
-            setGameOver(true)
-        }
-    }, [playerHP]);
-
-    useEffect(() => {
-        setPlayerPos(playerPos);
-    }, [playerPos]);
-
-    useEffect(() => {
-        if (newPlayerPos.x === stairPos.x && newPlayerPos.y === stairPos.y) {
-            const data = new FormData();
-            data.append("session", session);
-            fetcher.submit(data, { action: "/game", method: "POST" });
-        }
-    }, [newPlayerPos]);
 
     return (
         <div style={{ textAlign: "center", paddingTop: "20px" }}>
             <h2>Floor: {floor} / HP: {playerHP}</h2>
-            <Map map={map} newPlayerPos={newPlayerPos} enemyPos={enemyPos} />
+            <Map field={field} newPlayerPos={playerPos} enemyPos={enemyPos} />
             <p>Use Arrow keys or vim keys (h, j, k, l) to move</p>
             {gameOver && (
                 <div style={{ textAlign: "center", marginTop: "20vh" }}>
@@ -187,22 +176,22 @@ export default function Game() {
 }
 
 function Map({
-    map,
+    field,
     newPlayerPos,
     enemyPos,
-}: { map: GenerateMap["map"]; newPlayerPos: Position; enemyPos: Position }) {
+}: { field: Field; newPlayerPos: Position; enemyPos: Position }) {
     return (
         <div
             style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(${GRID_WIDTH}, 40px)`,
-                gridTemplateRows: `repeat(${GRID_HEIGHT}, 40px)`,
+                gridTemplateColumns: `repeat(${field.length}, 40px)`,
+                gridTemplateRows: `repeat(${field[0].length}, 40px)`,
                 gap: "2px",
                 justifyContent: "center",
                 margin: "auto",
             }}
         >
-            {map.map((row, y) =>
+            {field.map((row, y) =>
                 row.map((tile, x) => {
                     let bgColor = "#333";
                     if (tile.type === "floor") {

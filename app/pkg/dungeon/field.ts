@@ -4,20 +4,25 @@ type Tile = {
     type: "wall" | "floor" | "stair";
 };
 
-export type Map = Line[]
+export type Field = Line[]
 
 export type Position = { x: number; y: number }
 
-export type GenerateMap = { map: Map; stairPos: Position, playerPos: Position }
+export type GenerateFloor = {
+    field: Field,
+    stairPos: Position,
+    playerPos: Position,
+    enemyPos: Position,
+}
 
-export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMap {
-    const map: Tile[][] = [];
+export function generateFloor(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateFloor {
+    const field: Field = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
         const row: Tile[] = [];
         for (let x = 0; x < GRID_WIDTH; x++) {
             row.push({ type: "wall" });
         }
-        map.push(row);
+        field.push(row);
     }
 
     const totalTiles = GRID_WIDTH * GRID_HEIGHT;
@@ -25,7 +30,7 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMa
 
     let currentX = 0;
     let currentY = 0;
-    map[currentY][currentX].type = "floor";
+    field[currentY][currentX].type = "floor";
     let floorCount = 1;
 
     while (floorCount < floorThreshold) {
@@ -43,8 +48,8 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMa
         }
         currentX = newX;
         currentY = newY;
-        if (map[currentY][currentX].type === "wall") {
-            map[currentY][currentX].type = "floor";
+        if (field[currentY][currentX].type === "wall") {
+            field[currentY][currentX].type = "floor";
             floorCount++;
         }
     }
@@ -53,7 +58,7 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMa
     const floorCells: Position[] = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
         for (let x = 0; x < GRID_WIDTH; x++) {
-            if (map[y][x].type === "floor") {
+            if (field[y][x].type === "floor") {
                 floorCells.push({ x, y });
             }
         }
@@ -65,7 +70,7 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMa
 
     // 階段を配置するセルをランダムに選択
     const stairCell = floorCells[Math.floor(Math.random() * floorCells.length)];
-    map[stairCell.y][stairCell.x].type = "stair";
+    field[stairCell.y][stairCell.x].type = "stair";
 
     // 階段セルを除外して、プレイヤーの初期位置を選ぶ
     const availableFloorCells = floorCells.filter(cell => cell.x !== stairCell.x || cell.y !== stairCell.y);
@@ -75,5 +80,9 @@ export function generateMap(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateMa
         ? availableFloorCells[Math.floor(Math.random() * availableFloorCells.length)]
         : stairCell;
 
-    return { map, stairPos: stairCell, playerPos: playerCell };
+
+    const enemyCell = availableFloorCells.filter(cell => cell.x !== playerCell.x || cell.y !== playerCell.y);
+    const enemyPos = enemyCell[Math.floor(Math.random() * enemyCell.length)];
+
+    return { field, stairPos: stairCell, playerPos: playerCell, enemyPos }
 }

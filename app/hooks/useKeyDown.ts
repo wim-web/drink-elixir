@@ -1,9 +1,10 @@
 
 import { useCallback } from "react";
-import type { Map, Position } from "~/pkg/map/generate";
+import type { Field, Position } from "~/pkg/dungeon/field";
 
 
-export function useKeyDown(gameOver: boolean, mapData: Map, setPlayerPos: React.Dispatch<React.SetStateAction<Position>>) {
+
+export function useKeyDown(gameOver: boolean, field: Field, setPlayerPos: React.Dispatch<React.SetStateAction<Position>>) {
     return useCallback(
         (e: KeyboardEvent) => {
             if (gameOver) return;
@@ -37,13 +38,13 @@ export function useKeyDown(gameOver: boolean, mapData: Map, setPlayerPos: React.
             setPlayerPos((prev) => {
                 const newX = prev.x + dx;
                 const newY = prev.y + dy;
-                if (newX < 0 || newX >= mapData[0].length || newY < 0 || newY >= mapData.length) {
+                if (newX < 0 || newX >= field[0].length || newY < 0 || newY >= field.length) {
                     return prev;
                 }
-                if (mapData[newY][newX].type === "wall") return prev;
+                if (field[newY][newX].type === "wall") return prev;
                 return { x: newX, y: newY };
             });
         },
-        [gameOver, mapData, setPlayerPos]
+        [gameOver, field, setPlayerPos]
     );
 }
