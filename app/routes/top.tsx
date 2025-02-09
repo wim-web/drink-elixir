@@ -1,8 +1,7 @@
 // top.tsx
 import type { MetaArgs } from "react-router";
-import { Form, Link, redirect } from "react-router";
+import { Form, redirect } from "react-router";
 import type { Route } from "./+types/top";
-import { randomUUID } from "crypto";
 
 export function meta({ }: MetaArgs) {
   return [
@@ -11,7 +10,7 @@ export function meta({ }: MetaArgs) {
 }
 
 export async function action({ context }: Route.ActionArgs) {
-  const uuid = randomUUID()
+  const uuid = crypto.randomUUID()
   const db = context.hono.context.env.DB;
   await db.prepare("INSERT INTO session (session) VALUES (?)").bind(uuid).run();
   return redirect(`/game?session=${uuid}`);
