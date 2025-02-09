@@ -9,5 +9,5 @@ assets = { directory = "./build/client" }
 
 [[d1_databases]]
 binding = "DB"
-database_name = "test-db"
-database_id = "1"
+database_name = "drink-elixir"
+database_id = "1739e129-7fb2-4ba9-8ec0-3141e7dd3a64"
