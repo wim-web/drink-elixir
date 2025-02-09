@@ -15,12 +15,18 @@ type SessionRow = {
     data: string | null;
 }
 
+async function suspend(db: D1Database, session: string) {
+    // delete session
+    await db.prepare("DELETE FROM session WHERE session = ?").bind(session).run();
+    return redirect("/");
+}
+
 export async function loader(args: Route.LoaderArgs) {
     const db = args.context.hono.context.env.DB;
     const url = new URL(args.request.url);
-    const session = url.searchParams.get("session")
+    const session = url.searchParams.get("session")?.toString()
 
-    if (session === null) {
+    if (session === undefined) {
         return redirect("/");
     }
 
@@ -29,7 +35,7 @@ export async function loader(args: Route.LoaderArgs) {
         .first<SessionRow>();
 
     if (result === null) {
-        return redirect("/");
+        return await suspend(db, session);
     }
 
     if (result.data === null) {
@@ -50,7 +56,7 @@ export async function loader(args: Route.LoaderArgs) {
     let { floor, loadCount } = data;
     loadCount++;
     if (loadCount != floor) {
-        return redirect("/");
+        return await suspend(db, session);
     }
 
     const storeData: StoreData = {
@@ -74,9 +80,9 @@ type StoreData = {
 
 export async function action(args: Route.ActionArgs) {
     const formData = await args.request.formData();
-    const session = formData.get("session");
+    const session = formData.get("session")?.toString();
 
-    if (session === null) {
+    if (session === undefined) {
         return redirect("/");
     }
 
@@ -86,7 +92,7 @@ export async function action(args: Route.ActionArgs) {
         .bind(session).first<SessionRow>();
 
     if (result === null || result.data === null) {
-        return redirect("/");
+        return await suspend(db, session);
     }
 
     const storeData: StoreData = JSON.parse(result.data);
