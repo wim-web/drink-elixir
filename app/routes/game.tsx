@@ -74,9 +74,8 @@ type StoreData = {
 export async function action(args: Route.ActionArgs) {
     const formData = await args.request.formData();
     const session = formData.get("session");
-    const floor = formData.get("floor");
 
-    if (session === null || floor === null) {
+    if (session === null) {
         return redirect("/");
     }
 
@@ -85,13 +84,11 @@ export async function action(args: Route.ActionArgs) {
     const result = await db.prepare("SELECT * FROM session WHERE session = ?")
         .bind(session).first<SessionRow>();
 
-    if (result === null) {
+    if (result === null || result.data === null) {
         return redirect("/");
     }
 
-    const storeData: StoreData = result.data === null
-        ? { floor: parseInt(floor.toString()) }
-        : JSON.parse(result.data);
+    const storeData: StoreData = JSON.parse(result.data);
 
     storeData.floor += 1;
 
@@ -125,7 +122,6 @@ export default function Game() {
             } else {
                 const data = new FormData();
                 data.append("session", session);
-                data.append("floor", floor.toString());
                 fetcher.submit(data, { action: "/game", method: "POST" });
             }
         }
