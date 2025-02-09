@@ -5,21 +5,13 @@ import { useKeyDown } from "~/hooks/useKeyDown";
 import type { Route } from './+types/game';
 import { useFetcher } from "react-router";
 import { FaStairs } from "react-icons/fa6";
+import { getSession, saveData } from "~/pkg/session/db";
+import { suspend } from "~/pkg/session";
 
 
 const GRID_WIDTH = 10;
 const GRID_HEIGHT = 10;
 
-type SessionRow = {
-    session: string;
-    data: string | null;
-}
-
-async function suspend(db: D1Database, session: string) {
-    // delete session
-    await db.prepare("DELETE FROM session WHERE session = ?").bind(session).run();
-    return redirect("/");
-}
 
 export async function loader(args: Route.LoaderArgs) {
     const db = args.context.hono.context.env.DB;
@@ -30,20 +22,18 @@ export async function loader(args: Route.LoaderArgs) {
         return redirect("/");
     }
 
-    const result = await db.prepare("SELECT * FROM session WHERE session = ?")
-        .bind(session)
-        .first<SessionRow>();
+    const result = await getSession(db, session);
 
     if (result === null) {
         return await suspend(db, session);
     }
 
+    // 初回アクセス時
     if (result.data === null) {
-        const storeData: StoreData = {
+        await saveData(db, session, {
             floor: 1,
             loadCount: 1,
-        }
-        await db.prepare("UPDATE session SET data = ? WHERE session = ?").bind(JSON.stringify(storeData), session).run();
+        });
 
         return {
             ...generateMap(GRID_WIDTH, GRID_HEIGHT),
@@ -52,19 +42,13 @@ export async function loader(args: Route.LoaderArgs) {
         }
     }
 
-    const data = JSON.parse(result.data) as StoreData;
-    let { floor, loadCount } = data;
+    let { floor, loadCount } = result.data;
     loadCount++;
     if (loadCount != floor) {
         return await suspend(db, session);
     }
 
-    const storeData: StoreData = {
-        floor,
-        loadCount,
-    }
-
-    await db.prepare("UPDATE session SET data = ? WHERE session = ?").bind(JSON.stringify(storeData), session).run();
+    await saveData(db, session, { floor, loadCount });
 
     return {
         ...generateMap(GRID_WIDTH, GRID_HEIGHT),
@@ -73,10 +57,7 @@ export async function loader(args: Route.LoaderArgs) {
     }
 }
 
-type StoreData = {
-    floor: number;
-    loadCount: number;
-}
+
 
 export async function action(args: Route.ActionArgs) {
     const formData = await args.request.formData();
@@ -88,20 +69,15 @@ export async function action(args: Route.ActionArgs) {
 
     const db = args.context.hono.context.env.DB;
 
-    const result = await db.prepare("SELECT * FROM session WHERE session = ?")
-        .bind(session).first<SessionRow>();
+    const result = await getSession(db, session);
 
     if (result === null || result.data === null) {
         return await suspend(db, session);
     }
 
-    const storeData: StoreData = JSON.parse(result.data);
+    result.data.floor += 1;
 
-    storeData.floor += 1;
-
-    await db.prepare("UPDATE session SET data = ? WHERE session = ?")
-        .bind(JSON.stringify(storeData), session)
-        .run();
+    await saveData(db, session, result.data);
 }
 
 function enemyMove(playerPos: Position, enemyPos: Position): { position: Position; isAttack: boolean } {
