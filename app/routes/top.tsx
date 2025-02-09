@@ -28,15 +28,17 @@ export default function Top() {
         height: "100vh",
       }}
     >
-      <h1>Drink Elixir</h1>
+      <h1 style={{ fontSize: "20px" }}>Drink Elixir</h1>
+      <h3 style={{ fontSize: "16px" }}>version beta</h3>
       <Form method="post">
         <button
           type="submit"
           style={{
+            marginTop: "20px",
             padding: "10px 20px",
             fontSize: "16px",
             cursor: "pointer",
-            border: "none",
+            border: "solid",
             borderRadius: "4px",
             color: "white",
           }}
