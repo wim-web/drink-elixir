@@ -187,69 +187,7 @@ export default function Game() {
     return (
         <div style={{ textAlign: "center", paddingTop: "20px" }}>
             <h2>Floor: {floor} / HP: {playerHP}</h2>
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${GRID_WIDTH}, 40px)`,
-                    gridTemplateRows: `repeat(${GRID_HEIGHT}, 40px)`,
-                    gap: "2px",
-                    justifyContent: "center",
-                    margin: "auto",
-                }}
-            >
-                {map.map((row, y) =>
-                    row.map((tile, x) => {
-                        let bgColor = "#333";
-                        if (tile.type === "floor") {
-                            bgColor = "#eee";
-                        }
-                        if (tile.type === "stair") {
-                            bgColor = "#fff";
-                        }
-                        return (
-                            <div
-                                key={`${x}-${y}`}
-                                style={{
-                                    width: "40px",
-                                    height: "40px",
-                                    backgroundColor: bgColor,
-                                    border: "1px solid #ccc",
-                                    position: "relative",
-                                }}
-                            >
-                                {tile.type === "stair" && (
-                                    <FaStairs
-                                        style={{
-                                            color: "black",
-                                            position: "absolute",
-                                            width: "100%",
-                                            height: "100%",
-                                            top: 0,
-                                            left: 0,
-                                        }}
-                                    />
-                                )}
-                                {/* プレイヤー描画 */}
-                                {newPlayerPos.x === x && newPlayerPos.y === y && (
-                                    <img
-                                        src="/bozo.png"
-                                        alt="player"
-                                        style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
-                                    />
-                                )}
-                                {/* 敵描画 */}
-                                {enemyPos.x === x && enemyPos.y === y && (
-                                    <img
-                                        src="/cat_devil.png"
-                                        alt="player"
-                                        style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
-                                    />
-                                )}
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+            <Map map={map} newPlayerPos={newPlayerPos} enemyPos={enemyPos} />
             <p>Use Arrow keys or vim keys (h, j, k, l) to move</p>
             {gameClear && (
                 <div style={{ textAlign: "center", marginTop: "20vh" }}>
@@ -269,4 +207,76 @@ export default function Game() {
             )}
         </div>
     );
+}
+
+function Map({
+    map,
+    newPlayerPos,
+    enemyPos,
+}: { map: GenerateMap["map"]; newPlayerPos: Position; enemyPos: Position }) {
+    return (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${GRID_WIDTH}, 40px)`,
+                gridTemplateRows: `repeat(${GRID_HEIGHT}, 40px)`,
+                gap: "2px",
+                justifyContent: "center",
+                margin: "auto",
+            }}
+        >
+            {map.map((row, y) =>
+                row.map((tile, x) => {
+                    let bgColor = "#333";
+                    if (tile.type === "floor") {
+                        bgColor = "#eee";
+                    }
+                    if (tile.type === "stair") {
+                        bgColor = "#fff";
+                    }
+                    return (
+                        <div
+                            key={`${x}-${y}`}
+                            style={{
+                                width: "40px",
+                                height: "40px",
+                                backgroundColor: bgColor,
+                                border: "1px solid #ccc",
+                                position: "relative",
+                            }}
+                        >
+                            {tile.type === "stair" && (
+                                <FaStairs
+                                    style={{
+                                        color: "black",
+                                        position: "absolute",
+                                        width: "100%",
+                                        height: "100%",
+                                        top: 0,
+                                        left: 0,
+                                    }}
+                                />
+                            )}
+                            {/* プレイヤー描画 */}
+                            {newPlayerPos.x === x && newPlayerPos.y === y && (
+                                <img
+                                    src="/bozo.png"
+                                    alt="player"
+                                    style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+                                />
+                            )}
+                            {/* 敵描画 */}
+                            {enemyPos.x === x && enemyPos.y === y && (
+                                <img
+                                    src="/cat_devil.png"
+                                    alt="player"
+                                    style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+                                />
+                            )}
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    )
 }
