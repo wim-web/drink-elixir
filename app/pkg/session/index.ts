@@ -10,6 +10,7 @@ export type StoreData = {
     loadCount: number;
     player?: {
         hitPoint: number;
+        inventory: Map<string, number>;
     }
 }
 

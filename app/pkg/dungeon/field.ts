@@ -1,21 +1,26 @@
+import { ItemNames } from "~/pkg/dungeon/item";
+
 type Line = Tile[];
 
 type Tile = {
     type: "wall" | "floor" | "stair";
+} | {
+    type: "item";
+    itemName: typeof ItemNames[number];
 };
 
 export type Field = Line[]
 
 export type Position = { x: number; y: number }
 
-export type GenerateFloor = {
+export type GenerateField = {
     field: Field,
     stairPos: Position,
     playerPos: Position,
     enemyPos: Position,
 }
 
-export function generateFloor(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateFloor {
+export function generateField(GRID_WIDTH: number, GRID_HEIGHT: number): GenerateField {
     const field: Field = [];
     for (let y = 0; y < GRID_HEIGHT; y++) {
         const row: Tile[] = [];
@@ -83,6 +88,23 @@ export function generateFloor(GRID_WIDTH: number, GRID_HEIGHT: number): Generate
 
     const enemyCell = availableFloorCells.filter(cell => cell.x !== playerCell.x || cell.y !== playerCell.y);
     const enemyPos = enemyCell[Math.floor(Math.random() * enemyCell.length)];
+
+    // 階段、プレイヤー、敵の位置を決定後、残りの床からアイテムを配置
+    const itemCells = availableFloorCells.filter(
+        cell => (cell.x !== playerCell.x || cell.y !== playerCell.y) &&
+            (cell.x !== enemyPos.x || cell.y !== enemyPos.y)
+    );
+
+    // 1-2個のアイテムをランダムに配置
+    const itemCount = Math.floor(Math.random() * 2);
+
+    for (let i = 0; i < Math.min(itemCount, itemCells.length); i++) {
+        const index = Math.floor(Math.random() * itemCells.length);
+        const itemCell = itemCells[index];
+        const itemName = ItemNames[Math.floor(Math.random() * ItemNames.length)];
+        field[itemCell.y][itemCell.x] = { type: "item", itemName };
+        itemCells.splice(index, 1);
+    }
 
     return { field, stairPos: stairCell, playerPos: playerCell, enemyPos }
 }

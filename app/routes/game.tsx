@@ -6,7 +6,7 @@ import { useFetcher } from "react-router";
 import { FaStairs } from "react-icons/fa6";
 import { getSession, saveData } from "~/pkg/session/db";
 import { suspend } from "~/pkg/session";
-import { generateMap, type Map } from "~/pkg/dungeon/map";
+import { generateMap, type DungeonMap } from "~/pkg/dungeon/map";
 import type { Field, Position } from "~/pkg/dungeon/field";
 
 
@@ -47,6 +47,8 @@ export async function loader(args: Route.LoaderArgs) {
 
     await saveData(db, session, { floor, loadCount, player });
 
+    console.log(player);
+
     return {
         ...generateMap({ player }),
         session,
@@ -71,9 +73,15 @@ export async function action(args: Route.ActionArgs) {
     }
 
     const playerHP = formData.get("player.hitPoint")?.toString();
+    const inventoryStr = formData.get("player.inventory")?.toString();
+
+    const inventory: Map<string, number> = inventoryStr ? new Map(Object.entries(JSON.parse(inventoryStr))) : new Map([]);
 
     result.data.floor += 1;
-    result.data.player = { hitPoint: parseInt(playerHP ?? "0") };
+    result.data.player = {
+        hitPoint: parseInt(playerHP ?? "0"),
+        inventory: inventory
+    };
 
     await saveData(db, session, result.data);
 }
@@ -105,7 +113,7 @@ function enemyMove(playerPos: Position, enemyPos: Position): { position: Positio
 export default function Game() {
     const fetcher = useFetcher();
     const loaderData = useLoaderData<
-        Map & { session: string; floor: number }
+        DungeonMap & { session: string; floor: number }
     >();
 
     const [playerPos, setPlayerPos] = useState({ x: 0, y: 0 });
@@ -125,6 +133,17 @@ export default function Game() {
     const handleKeyDown = useKeyDown(gameOver, field, (pos) => {
         const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
         setPlayerPos(newPos);
+
+        // アイテムを踏んだ場合の処理を追加
+        const tile = field[newPos.y][newPos.x];
+        if (tile.type === "item") {
+            const itemName = tile.itemName;
+            const currentCount = player.inventory.get(itemName) ?? 0;
+            player.inventory.set(itemName, currentCount + 1);
+            // 床に変更
+            field[newPos.y][newPos.x] = { type: "floor" };
+        }
+
         // プレイヤーが階段に到達していない場合のみ敵を移動
         if (!(newPos.x === stairPos.x && newPos.y === stairPos.y)) {
             const { position: newEnemyPos, isAttack } = enemyMove(newPos, enemyPos);
@@ -140,6 +159,8 @@ export default function Game() {
             const data = new FormData();
             data.append("session", session);
             data.append("player.hitPoint", playerHP.toString());
+            // インベントリをJSON文字列として保存
+            data.append("player.inventory", JSON.stringify(Object.fromEntries(player.inventory)));
             fetcher.submit(data, { action: "/game", method: "POST" });
         }
     });
@@ -152,8 +173,12 @@ export default function Game() {
 
     return (
         <div style={{ textAlign: "center", paddingTop: "20px" }}>
-            <h2>Floor: {floor} / HP: {playerHP}</h2>
-            <Map field={field} newPlayerPos={playerPos} enemyPos={enemyPos} />
+            <h2>
+                Floor: {floor} / HP: {playerHP} /
+                P: {player.inventory.get("potion") ?? 0} /
+                D: {player.inventory.get("deUSD") ?? 0}
+            </h2>
+            <MapUI field={field} newPlayerPos={playerPos} enemyPos={enemyPos} />
             <p>Use Arrow keys or vim keys (h, j, k, l) to move</p>
             {gameOver && (
                 <div style={{ textAlign: "center", marginTop: "20vh" }}>
@@ -175,7 +200,7 @@ export default function Game() {
     );
 }
 
-function Map({
+function MapUI({
     field,
     newPlayerPos,
     enemyPos,
@@ -238,6 +263,21 @@ function Map({
                                     alt="player"
                                     style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
                                 />
+                            )}
+                            {tile.type === "item" && (
+                                <div style={{
+                                    position: "absolute",
+                                    width: "100%",
+                                    height: "100%",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    fontSize: "24px",
+                                    background: "pink",
+                                    color: "black"
+                                }}>
+                                    {tile.itemName[0].toUpperCase()}
+                                </div>
                             )}
                         </div>
                     );
