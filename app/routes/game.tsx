@@ -131,7 +131,7 @@ export default function Game() {
     // useKeyDown フック内で setPlayerPos を使った後、敵の処理を呼ぶ
     const handleKeyDown = useCallback(useKeyDown(
         // fetcher送信中もゲームオーバー同様に入力を無効化
-        gameOver || fetcher.state === "submitting",
+        gameOver || !(fetcher.state === "idle"),
         field,
         (pos) => {
             const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
