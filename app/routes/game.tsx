@@ -129,49 +129,54 @@ export default function Game() {
     }, [loaderData]);
 
     // useKeyDown フック内で setPlayerPos を使った後、敵の処理を呼ぶ
-    const handleKeyDown = useCallback(useKeyDown(gameOver, field, (pos) => {
-        const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
-        setPlayerPos(newPos);
+    const handleKeyDown = useCallback(useKeyDown(
+        // fetcher送信中もゲームオーバー同様に入力を無効化
+        gameOver || fetcher.state === "submitting",
+        field,
+        (pos) => {
+            const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
+            setPlayerPos(newPos);
 
-        // アイテムを踏んだ場合の処理を追加
-        const tile = field[newPos.y][newPos.x];
-        if (tile.type === "item") {
-            const itemName = tile.itemName;
-            const currentCount = player.inventory.get(itemName) ?? 0;
-            player.inventory.set(itemName, currentCount + 1);
+            // アイテムを踏んだ場合の処理を追加
+            const tile = field[newPos.y][newPos.x];
+            if (tile.type === "item") {
+                const itemName = tile.itemName;
+                const currentCount = player.inventory.get(itemName) ?? 0;
+                player.inventory.set(itemName, currentCount + 1);
 
-            // potionを踏んだ場合はHPを回復
-            if (itemName === "potion") {
-                const healAmount = Math.floor(Math.random() * 4) + 1; // 1-5のランダムな値
-                setPlayerHP(currentHP => Math.min(currentHP + healAmount, playerMaxHitPoint)); // 最大HPを20に設定
+                // potionを踏んだ場合はHPを回復
+                if (itemName === "potion") {
+                    const healAmount = Math.floor(Math.random() * 4) + 1; // 1-5のランダムな値
+                    setPlayerHP(currentHP => Math.min(currentHP + healAmount, playerMaxHitPoint)); // 最大HPを20に設定
+                }
+
+                // 床に変更
+                field[newPos.y][newPos.x] = { type: "floor" };
             }
 
-            // 床に変更
-            field[newPos.y][newPos.x] = { type: "floor" };
-        }
-
-        // プレイヤーが階段に到達していない場合のみ敵を移動
-        if (!(newPos.x === stairPos.x && newPos.y === stairPos.y)) {
-            const { position: newEnemyPos, isAttack } = enemyMove(newPos, enemyPos);
-            if (isAttack) {
-                setPlayerHP(currentHP => {
-                    const newHP = currentHP - 1;
-                    if (newHP <= 0) {
-                        setGameOver(true);
-                    }
-                    return newHP;
-                });
+            // プレイヤーが階段に到達していない場合のみ敵を移動
+            if (!(newPos.x === stairPos.x && newPos.y === stairPos.y)) {
+                const { position: newEnemyPos, isAttack } = enemyMove(newPos, enemyPos);
+                if (isAttack) {
+                    setPlayerHP(currentHP => {
+                        const newHP = currentHP - 1;
+                        if (newHP <= 0) {
+                            setGameOver(true);
+                        }
+                        return newHP;
+                    });
+                }
+                setEnemyPos(newEnemyPos);
+            } else {
+                const data = new FormData();
+                data.append("session", session);
+                data.append("player.hitPoint", playerHP.toString());
+                // インベントリをJSON文字列として保存
+                data.append("player.inventory", JSON.stringify(Object.fromEntries(player.inventory)));
+                fetcher.submit(data, { action: "/game", method: "POST" });
             }
-            setEnemyPos(newEnemyPos);
-        } else {
-            const data = new FormData();
-            data.append("session", session);
-            data.append("player.hitPoint", playerHP.toString());
-            // インベントリをJSON文字列として保存
-            data.append("player.inventory", JSON.stringify(Object.fromEntries(player.inventory)));
-            fetcher.submit(data, { action: "/game", method: "POST" });
         }
-    }), [gameOver, field, playerPos, enemyPos, player, stairPos, session]); // 必要な依存関係のみを指定
+    ), [gameOver, field, playerPos, enemyPos, player, stairPos, session, fetcher.state, playerHP]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
