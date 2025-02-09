@@ -48,8 +48,6 @@ export async function loader(args: Route.LoaderArgs) {
 
     await saveData(db, session, { floor, loadCount, player });
 
-    console.log(player);
-
     return {
         ...generateMap({ player }),
         session,
