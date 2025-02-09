@@ -4,6 +4,7 @@ import { generateMap, type GenerateMap } from "../pkg/map/generate";
 import { useKeyDown } from "~/hooks/useKeyDown";
 import type { Route } from './+types/game';
 import { useFetcher } from "react-router";
+import { FaStairs } from "react-icons/fa6";
 
 
 const GRID_WIDTH = 10;
@@ -166,10 +167,7 @@ export default function Game() {
                             bgColor = "#eee";
                         }
                         if (tile.type === "stair") {
-                            bgColor = "#ff0";
-                        }
-                        if (newPlayerPos.x === x && newPlayerPos.y === y) {
-                            bgColor = "#0f0";
+                            bgColor = "#fff";
                         }
                         return (
                             <div
@@ -179,8 +177,34 @@ export default function Game() {
                                     height: "40px",
                                     backgroundColor: bgColor,
                                     border: "1px solid #ccc",
+                                    position: "relative"
                                 }}
-                            ></div>
+                            >
+                                {/* stiarのときはFaStairs */}
+                                {tile.type === "stair" && (
+                                    <FaStairs style={{
+                                        color: "black",
+                                        position: "absolute",
+                                        width: "100%",
+                                        height: "100%",
+                                        top: 0,
+                                        left: 0,
+                                    }} />
+                                )}
+                                {newPlayerPos.x === x && newPlayerPos.y === y && (
+                                    <img
+                                        src="/bozo.png"
+                                        alt="player"
+                                        style={{
+                                            position: "absolute",
+                                            width: "100%",
+                                            height: "100%",
+                                            top: 0,
+                                            left: 0,
+                                        }}
+                                    />
+                                )}
+                            </div>
                         );
                     })
                 )}
