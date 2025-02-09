@@ -3,10 +3,10 @@ import { useCallback } from "react";
 import type { Map, Position } from "~/pkg/map/generate";
 
 
-export function useKeyDown(gameClear: boolean, mapData: Map, setPlayerPos: React.Dispatch<React.SetStateAction<Position>>) {
+export function useKeyDown(gameOver: boolean, mapData: Map, setPlayerPos: React.Dispatch<React.SetStateAction<Position>>) {
     return useCallback(
         (e: KeyboardEvent) => {
-            if (gameClear) return;
+            if (gameOver) return;
             let dx = 0,
                 dy = 0;
             switch (e.key) {
@@ -44,6 +44,6 @@ export function useKeyDown(gameClear: boolean, mapData: Map, setPlayerPos: React
                 return { x: newX, y: newY };
             });
         },
-        [gameClear, mapData, setPlayerPos]
+        [gameOver, mapData, setPlayerPos]
     );
 }

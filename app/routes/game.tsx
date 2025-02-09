@@ -137,7 +137,7 @@ export default function Game() {
     const [newPlayerPos, setPlayerPos] = useState(playerPos);
     const [enemyPos, setEnemyPos] = useState<Position>({ x: GRID_WIDTH - 1, y: GRID_HEIGHT - 1 });
     const [playerHP, setPlayerHP] = useState(10);
-    const [gameClear, setGameClear] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
 
     // プレイヤー動作後に敵を動かす処理
     const moveEnemy = useCallback(
@@ -152,7 +152,7 @@ export default function Game() {
     );
 
     // useKeyDown フック内で setPlayerPos を使った後、敵の処理を呼ぶ
-    const handleKeyDown = useKeyDown(gameClear, map, (pos) => {
+    const handleKeyDown = useKeyDown(gameOver, map, (pos) => {
         const newPos = typeof pos === 'function' ? pos(newPlayerPos) : pos;
         setPlayerPos(newPos);
         // プレイヤーが階段に到達していない場合のみ敵を移動
@@ -169,8 +169,7 @@ export default function Game() {
     useEffect(() => {
         // HPが0以下になった場合の処理（例: トップに戻すなど）
         if (playerHP <= 0) {
-            alert("You have been defeated!");
-            window.location.href = "/";
+            setGameOver(true)
         }
     }, [playerHP]);
 
@@ -180,10 +179,6 @@ export default function Game() {
 
     useEffect(() => {
         if (newPlayerPos.x === stairPos.x && newPlayerPos.y === stairPos.y) {
-            if (floor >= 10) {
-                setGameClear(true);
-                return;
-            }
             const data = new FormData();
             data.append("session", session);
             fetcher.submit(data, { action: "/game", method: "POST" });
@@ -195,9 +190,9 @@ export default function Game() {
             <h2>Floor: {floor} / HP: {playerHP}</h2>
             <Map map={map} newPlayerPos={newPlayerPos} enemyPos={enemyPos} />
             <p>Use Arrow keys or vim keys (h, j, k, l) to move</p>
-            {gameClear && (
+            {gameOver && (
                 <div style={{ textAlign: "center", marginTop: "20vh" }}>
-                    <h1>Game Clear!</h1>
+                    <h1>Game Over...</h1>
                     <Link to="/" style={{ textDecoration: "none" }}>
                         <button
                             style={{
