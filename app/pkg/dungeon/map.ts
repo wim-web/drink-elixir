@@ -1,5 +1,6 @@
 import { generateField, type Field, type Position } from "~/pkg/dungeon/field";
-import type { Enemy, Player } from "~/pkg/dungeon/piece";
+import type { ItemNames } from "~/pkg/dungeon/item";
+import { playerMaxHitPoint, type Enemy, type Player } from "~/pkg/dungeon/piece";
 
 const GRID_WIDTH = 10;
 const GRID_HEIGHT = 10;
@@ -20,9 +21,18 @@ export function generateMap({ player }: {
         field,
         stairPos,
         player: {
-            type: "player", hitPoint: 20, attack: 0, pos: playerPos, inventory: new Map(),
+            type: "player", hitPoint: playerMaxHitPoint, attack: 0, pos: playerPos, inventory: new Map(),
             ...player,
         },
         enemy: { type: "enemy", hitPoint: 5, attack: 1, pos: enemyPos },
     }
+}
+
+export function score({ floor, inventory }: {
+    floor: number,
+    inventory: Map<typeof ItemNames[number], number>,
+}): number {
+    const potions = inventory.get("potion") ?? 0;
+    const deUSD = inventory.get("deUSD") ?? 0;
+    return floor * 12 + potions * 77 + deUSD * 151;
 }

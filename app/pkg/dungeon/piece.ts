@@ -6,6 +6,8 @@ export type Piece = {
     attack: number,
 }
 
+export const playerMaxHitPoint = 20;
+
 export type Player = Piece & {
     type: "player",
     attack: 0,

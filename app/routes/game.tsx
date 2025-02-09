@@ -6,8 +6,9 @@ import { useFetcher } from "react-router";
 import { FaStairs } from "react-icons/fa6";
 import { getSession, saveData } from "~/pkg/session/db";
 import { suspend } from "~/pkg/session";
-import { generateMap, type DungeonMap } from "~/pkg/dungeon/map";
+import { generateMap, score, type DungeonMap } from "~/pkg/dungeon/map";
 import type { Field, Position } from "~/pkg/dungeon/field";
+import { playerMaxHitPoint } from "~/pkg/dungeon/piece";
 
 
 export async function loader(args: Route.LoaderArgs) {
@@ -130,7 +131,7 @@ export default function Game() {
     }, [loaderData]);
 
     // useKeyDown フック内で setPlayerPos を使った後、敵の処理を呼ぶ
-    const handleKeyDown = useKeyDown(gameOver, field, (pos) => {
+    const handleKeyDown = useCallback(useKeyDown(gameOver, field, (pos) => {
         const newPos = typeof pos === 'function' ? pos(playerPos) : pos;
         setPlayerPos(newPos);
 
@@ -140,6 +141,13 @@ export default function Game() {
             const itemName = tile.itemName;
             const currentCount = player.inventory.get(itemName) ?? 0;
             player.inventory.set(itemName, currentCount + 1);
+
+            // potionを踏んだ場合はHPを回復
+            if (itemName === "potion") {
+                const healAmount = Math.floor(Math.random() * 4) + 1; // 1-5のランダムな値
+                setPlayerHP(currentHP => Math.min(currentHP + healAmount, playerMaxHitPoint)); // 最大HPを20に設定
+            }
+
             // 床に変更
             field[newPos.y][newPos.x] = { type: "floor" };
         }
@@ -148,11 +156,13 @@ export default function Game() {
         if (!(newPos.x === stairPos.x && newPos.y === stairPos.y)) {
             const { position: newEnemyPos, isAttack } = enemyMove(newPos, enemyPos);
             if (isAttack) {
-                const newHP = playerHP - 1;
-                setPlayerHP(newHP);
-                if (newHP <= 0) {
-                    setGameOver(true);
-                }
+                setPlayerHP(currentHP => {
+                    const newHP = currentHP - 1;
+                    if (newHP <= 0) {
+                        setGameOver(true);
+                    }
+                    return newHP;
+                });
             }
             setEnemyPos(newEnemyPos);
         } else {
@@ -163,12 +173,12 @@ export default function Game() {
             data.append("player.inventory", JSON.stringify(Object.fromEntries(player.inventory)));
             fetcher.submit(data, { action: "/game", method: "POST" });
         }
-    });
+    }), [gameOver, field, playerPos, enemyPos, player, stairPos, session]); // 必要な依存関係のみを指定
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [handleKeyDown]);
+    }, [handleKeyDown]); // playerHPを依存配列から除去
 
 
     return (
@@ -183,6 +193,7 @@ export default function Game() {
             {gameOver && (
                 <div style={{ textAlign: "center", marginTop: "20vh" }}>
                     <h1>Game Over...</h1>
+                    <p>Your score is {score({ floor, inventory: player.inventory })}</p>
                     <Link to="/" style={{ textDecoration: "none" }}>
                         <button
                             style={{

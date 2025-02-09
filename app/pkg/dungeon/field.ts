@@ -96,7 +96,7 @@ export function generateField(GRID_WIDTH: number, GRID_HEIGHT: number): Generate
     );
 
     // 1-2個のアイテムをランダムに配置
-    const itemCount = Math.floor(Math.random() * 2);
+    const itemCount = Math.floor(Math.random() * 2) + 1;
 
     for (let i = 0; i < Math.min(itemCount, itemCells.length); i++) {
         const index = Math.floor(Math.random() * itemCells.length);
